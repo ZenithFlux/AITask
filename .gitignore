@@ -4,3 +4,4 @@ _*
 # dev files and folders
 .venv
 .*shinit
+.env

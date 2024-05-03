@@ -18,9 +18,11 @@ def fetch_wordpress_site_content(api_root: str) -> Iterator[dict[str, str]]:
 
             for item in res_json:
                 if content_type == "comments":
-                    item["title"] = {"rendered": "comment"}
+                    item["title"] = {"rendered": "Comment"}
 
                 yield {
+                    "id": str(item["id"]),
+                    "type" : item["type"],
                     "title": item["title"]["rendered"],
                     "link" : item["link"],
                     "content": item["content"]["rendered"],
