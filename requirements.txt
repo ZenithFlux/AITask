@@ -4,3 +4,5 @@ langchain-text-splitters==0.0.1
 tiktoken==0.6.0
 voyageai==0.2.2
 pinecone-client==4.0.0
+mistralai==0.1.8
+mistral-common==1.0.2
