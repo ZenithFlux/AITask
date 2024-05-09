@@ -1,0 +1,70 @@
+/* Resetting default margin and padding */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Basic styling for the chat container */
+.chat-container {
+    width: 400px;
+    margin: 50px auto;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Styling for the chat box */
+.chat-box {
+    padding: 10px;
+    height: 300px;
+    overflow-y: scroll;
+}
+
+/* Styling for individual chat messages */
+.chat-message {
+    margin-bottom: 10px;
+}
+
+/* Styling for message sender */
+.message-sender {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* Styling for message text */
+.message-text {
+    word-wrap: break-word;
+}
+
+/* Styling for the chat input area */
+.chat-input {
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-top: 1px solid #ccc;
+    display: flex;
+}
+
+/* Styling for the input field */
+.chat-input input {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    margin-right: 10px;
+}
+
+/* Styling for the send button */
+.chat-input button {
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Hover effect for the send button */
+.chat-input button:hover {
+    background-color: #0056b3;
+}
