@@ -40,7 +40,7 @@ class WordPressRAG:
 
     def generate(
         self,
-        site_domain: str,
+        site_domain: str | None,
         chat_input: list[dict[str, str]],
         temperature: float | None = None,
     ) -> list[dict[str, str]]:
@@ -48,7 +48,8 @@ class WordPressRAG:
         Generate response from the chatbot.
 
         Args:
-            site_domain: Site's domain name. E.g. "www.example.com"
+            site_domain: Site's domain name. E.g. "www.example.com".
+                If None, RAG will not be performed.
             chat_input: Chat with complete history as a dictionary.
             temperature: Randomness in chatbot output (0 to 1).
 
@@ -64,12 +65,17 @@ class WordPressRAG:
         if self.count_chat_tokens(chat[:-1]) > 1000:
             chat = self.summarize_chat(chat[:-1], 400) + [chat[-1]]
 
-        retrieved_texts = self.retrieve_similar(chat[-1].content, 5, site_domain)
-        rag_msg = "You can use the following data to answer the user query:"
-        for text in retrieved_texts:
-            rag_msg += "\n\n-----\n\n" + text
-        rag_msg = ChatMessage(role="system", content=rag_msg)
-        chat_llm = chat[:-1] + [rag_msg, self.add_cot_prompt(chat[-1])]
+        if site_domain is not None:
+            retrieved_texts = self.retrieve_similar(chat[-1].content, 5, site_domain)
+            rag_msg = "You can use the following data to answer the user query:"
+            for text in retrieved_texts:
+                rag_msg += "\n\n-----\n\n" + text
+            rag_msg = ChatMessage(role="system", content=rag_msg)
+            chat_llm = chat[:-1] + [rag_msg, chat[-1]]
+        else:
+            chat_llm = chat
+
+        chat_llm = chat_llm[:-1] + [self.add_cot_prompt(chat_llm[-1])]
         res = self.client.chat(chat_llm, self.model,
                                temperature=temperature,
                                safe_prompt=True)
@@ -88,6 +94,9 @@ class WordPressRAG:
                 chat_roles.append(UserMessage(content=msg.content))
             elif msg.role == "assistant":
                 chat_roles.append(AssistantMessage(content=msg.content))
+
+        if chat_roles[-1].role != "user":
+            chat_roles.append(UserMessage(content=""))
 
         tokens, _ = self.tokenizer.encode_chat_completion(
             ChatCompletionRequest(model=self.model, messages=chat_roles)

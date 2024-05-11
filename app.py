@@ -106,10 +106,16 @@ def chat():
                 {"role": "user", "content": "message3"}
             ]
         }
+
+    Optional:
+        "site_url": If not present, RAG is not performed.
     """
     auth_res = authorize()
     if auth_res[1] == 401:
         return auth_res
 
-    site_domain = urlparse(request.json["site_url"]).hostname
+    if "site_url" in request.json:
+        site_domain = urlparse(request.json["site_url"]).hostname
+    else:
+        site_domain = None
     return CHATBOT.generate(site_domain, request.json["messages"])

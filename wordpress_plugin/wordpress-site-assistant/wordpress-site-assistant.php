@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: WordPress Site Assistant
- * Description: Adds AI Chat Assistant for your site.
+ * Description: Adds an AI Assistant to your site.
  * Version: 1.0.0
  * Author: Chaitanya Lakhchaura
  * Text Domain: wordpress-site-assistant
@@ -14,12 +14,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class WordPress_Site_Assistant {
 
+    static $ASSISTANT_URL = 'http://127.0.0.1:5000/';
+
     public function __construct() {
-        register_activation_hook( __FILE__, array( $this, 'activate_plugin' ) );
-        register_deactivation_hook( __FILE__, array( $this, 'deactivate_plugin' ) );
-        add_filter( 'theme_page_templates', array( $this, 'add_template' ) );
-        add_filter( 'template_include' , array( $this, 'template_path' ) );
-        add_action( 'wp_enqueue_scripts', array( $this, 'load_assets' ) );
+        register_activation_hook( __FILE__, [ $this, 'activate_plugin' ] );
+        register_deactivation_hook( __FILE__, [ $this, 'deactivate_plugin' ] );
+        add_filter( 'theme_page_templates', [ $this, 'add_template' ] );
+        add_filter( 'template_include' , [ $this, 'template_path' ] );
+        add_action( 'wp_enqueue_scripts', [ $this, 'load_assets' ] );
+
+        // Ajax requests
+        add_action("wp_ajax_call_assistant", [ $this, 'send_conversation_to_llm' ]);
+        add_action("wp_ajax_delete_conversation", [ $this, 'delete_conversation' ]);
     }
 
 
@@ -37,7 +43,12 @@ class WordPress_Site_Assistant {
 
 
     public function deactivate_plugin() {
-        $page = new WP_Query( array( 'pagename' => 'wordpress-site-assistant' ) );
+        $user_ids = get_users([ 'fields' => 'ID' ]);
+        foreach ($user_ids as $user_id) {
+            delete_user_meta($user_id, 'llm_chat');
+            delete_user_meta($user_id, 'assistant_chat');
+        }
+        $page = new WP_Query( [ 'pagename' => 'wordpress-site-assistant' ] );
         wp_delete_post( $page->post->ID );
     }
 
@@ -56,13 +67,44 @@ class WordPress_Site_Assistant {
     }
 
 
-    public function add_admin_menu() {
-        // Add menu items here.
+    public function send_conversation_to_llm() {
+        check_ajax_referer('assistant_chat');
+        $user_id = get_current_user_id();
+        $llm_chat = get_user_meta($user_id, 'llm_chat', true);
+        $assistant_chat = get_user_meta($user_id, 'assistant_chat', true);
+        $llm_chat[] = [ 'role' => 'user', 'content' => wp_unslash($_POST['user_msg']) ];
+        $assistant_chat[] = end($llm_chat);
+        $res = wp_remote_post(self::$ASSISTANT_URL . 'chat', [
+            'timeout' => 30,
+            'headers' => [
+                'Authorization' => 'Bearer ' . WORDPRESS_SITE_ASSISTANT_API_KEY,
+                'Content-Type' => 'application/json',
+            ],
+            'body' => wp_json_encode([
+                // 'site_url' => 'www.example.com',
+                'messages' => $llm_chat,
+            ]),
+        ]);
+        $res_code = $res['response']['code'];
+        if ($res_code !== 200) {
+            error_log($res['body']);
+            wp_send_json_error('Cound not communicate with the assistant', 500);
+            return;
+        }
+        $llm_chat = json_decode($res['body'], true);
+        $assistant_chat[] = end($llm_chat);
+        update_user_meta($user_id, 'llm_chat', $llm_chat);
+        update_user_meta($user_id, 'assistant_chat', $assistant_chat);
+        wp_die(end($assistant_chat)['content']);
     }
 
 
-    public function send_conversation_to_api() {
-        // Placeholder function. Send conversation history to API and append response.
+    public function delete_conversation() {
+        check_ajax_referer('assistant_chat');
+        $user_id = get_current_user_id();
+        delete_user_meta($user_id, 'llm_chat');
+        delete_user_meta($user_id, 'assistant_chat');
+        wp_die();
     }
 
 
@@ -70,37 +112,71 @@ class WordPress_Site_Assistant {
         if ( ! is_page( 'wordpress-site-assistant' ) ) {
             return;
         }
+        add_action( 'wp_body_open', [ $this, 'page_body'] );
+        if ( ! is_user_logged_in() ) {
+            return;
+        }
         wp_enqueue_style(
-            'wordpress-site-assistant',
-            plugin_dir_url(__FILE__) . 'style.css',
-            array(),
+            'assistant-css',
+            plugins_url('style.css', __FILE__),
+            [],
             1,
             'all'
         );
-        add_action( 'wp_body_open', array( $this, 'page_body') );
+        wp_enqueue_script(
+            'assistant-js',
+            plugins_url('script.js', __FILE__),
+            [ 'jquery' ],
+            1,
+            [ 'in_footer' => true ],
+        );
+        wp_localize_script(
+            'assistant-js',
+            'ajax_obj',
+            [ 'url' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('assistant_chat') ]
+        );
     }
 
 
     public function page_body() {
+        if ( ! is_user_logged_in() ) {
+            ?> <h1> Must be logged in to use the assistant </h1> <?php
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        if ( ! metadata_exists( 'user', $user_id, 'assistant_chat') ) {
+            add_user_meta( $user_id, 'assistant_chat', [
+                [ 'role' => 'assistant', 'content' => 'Hey, how can I help you?' ],
+            ], true);
+        }
+        if ( ! metadata_exists( 'user', $user_id, 'llm_chat') ) {
+            $system_msg = [
+                'role' => 'system',
+                'content' => 'You are an AI assistant who helps users to '
+                            .'get information from the current WordPress site.'
+            ];
+            $assistant_chat = get_user_meta($user_id, 'assistant_chat', true);
+            add_user_meta( $user_id, 'llm_chat', array_merge([ $system_msg ], $assistant_chat ), true);
+        }
+
+        $assistant_chat = get_user_meta($user_id, 'assistant_chat', true);
         ?>
             <div class="chat-container">
                 <button class="delete-conversation-btn">Delete Conversation</button>
                 <h1 class="chat-title">Wordpress Site Assistant</h1>
                 <div class="chat-box">
-                    <div class="chat-message">
-                        <span class="message-sender">John:</span>
-                        <span class="message-text">Hey, how are you?</span>
-                    </div>
-                    <div class="chat-message">
-                        <span class="message-sender">Jane:</span>
-                        <span class="message-text">I'm good, thanks for asking!</span>
-                    </div>
-                    <!-- More chat messages can be added here -->
+                    <?php foreach ($assistant_chat as $msg): ?>
+                        <div class="chat-message">
+                        <span class="message-sender"><?= ucfirst($msg['role'])?>:</span>
+                        <span class="message-text"><?= $msg['content']?></span>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
-                <div class="chat-input">
+                <form class="chat-input">
                     <input type="text" placeholder="Type your message...">
-                    <button>Send</button>
-                </div>
+                    <button type="submit">Send</button>
+                </form>
             </div>
         <?php
     }

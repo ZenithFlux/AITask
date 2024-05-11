@@ -1,76 +1,66 @@
-/* Resetting default margin and padding */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Styling for the body */
 body {
-    margin: 0; /* Resetting default body margin */
-    padding: 0; /* Resetting default body padding */
+    margin: 0;
+    padding: 0;
     display: flex;
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
+    justify-content: center;
     height: 100vh; /* Full viewport height */
-    background-color: #f5f5f5; /* Add a background color */
+    background-color: #ddd;
 }
 
-/* Styling for the chat container */
 .chat-container {
-    width: 75%; /* 75% of the screen width */
-    height: 100vh; /* Full viewport height */
-    max-width: 800px; /* Maximum width */
+    width: 75%;
+    max-width: 800px;
+    margin: 10px 0px;
     border: 1px solid #ccc;
     border-radius: 8px;
     overflow: hidden;
     display: flex;
-    flex-direction: column; /* Stack children vertically */
-    position: relative; /* For positioning the delete button */
+    flex-direction: column;
+    position: relative;
 }
 
-/* Styling for the chat title */
 .chat-title {
     padding: 10px;
-    background-color: #fff; /* White background */
-    color: #000; /* Black text */
+    background-color: #fff;
+    color: #000;
     font-size: 20px;
     text-align: center;
 }
 
-/* Styling for the chat box */
 .chat-box {
     padding: 10px;
     flex: 1; /* Grow to fill remaining space */
     overflow-y: scroll;
+    background-color: #eee;
 }
 
-/* Styling for individual chat messages */
 .chat-message {
     margin-bottom: 10px;
 }
 
-/* Styling for message sender */
 .message-sender {
     font-weight: bold;
     margin-right: 5px;
 }
 
-/* Styling for message text */
 .message-text {
     word-wrap: break-word;
 }
 
-/* Styling for the chat input area */
 .chat-input {
     padding: 10px;
     background-color: #f9f9f9;
     border-top: 1px solid #ccc;
     display: flex;
-    align-items: center; /* Center children vertically */
+    align-items: center;
 }
 
-/* Styling for the input field */
 .chat-input input {
     flex: 1;
     padding: 8px;
@@ -79,7 +69,6 @@ body {
     margin-right: 10px;
 }
 
-/* Styling for the send button */
 .chat-input button {
     padding: 8px 15px;
     background-color: #007bff;
@@ -89,25 +78,22 @@ body {
     cursor: pointer;
 }
 
-/* Hover effect for the send button */
 .chat-input button:hover {
     background-color: #0056b3;
 }
 
-/* Styling for the delete conversation button */
 .delete-conversation-btn {
     padding: 8px 15px;
-    background-color: #ff5555; /* Red color */
+    background-color: #ff5555;
     color: #fff;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    position: absolute; /* Position absolutely */
-    top: 5px; /* Adjust top position */
-    left: 5px; /* Adjust left position */
+    position: absolute;
+    top: 5px;
+    left: 5px;
 }
 
-/* Hover effect for the delete conversation button */
 .delete-conversation-btn:hover {
-    background-color: #cc0000; /* Darker red color on hover */
+    background-color: #cc0000;
 }
