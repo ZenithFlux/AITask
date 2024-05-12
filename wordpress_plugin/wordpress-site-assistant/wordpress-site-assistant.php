@@ -28,8 +28,35 @@ class WordPress_Site_Assistant {
         add_action("wp_ajax_delete_conversation", [ $this, 'delete_conversation' ]);
     }
 
+    public static function check_key_exists() {
+        if ( ! defined("WORDPRESS_SITE_ASSISTANT_API_KEY") ) {
+            wp_die("WORDPRESS_SITE_ASSISTANT_API_KEY not defined!");
+        }
+    }
 
     public function activate_plugin() {
+        self::check_key_exists();
+        $res = wp_remote_post(self::$ASSISTANT_URL . 'db', [
+            'timeout' => 30,
+            'headers' => [
+                'Authorization' => 'Bearer ' . WORDPRESS_SITE_ASSISTANT_API_KEY,
+                'Content-Type' => 'application/json',
+            ],
+            'body' => wp_json_encode([ 'site_url' => home_url() ]),
+        ]);
+        if ( is_wp_error($res) ) {
+            wp_die('Unable to connect to the Assistant server');
+        }
+        $res_code = $res['response']['code'];
+        if ($res_code === 401) {
+            wp_die("Wrong WORDPRESS_SITE_ASSISTANT_API_KEY!");
+        }
+        if ( $res_code !== 200 ){
+            error_log("HTTP {$res_code}: {$res['response']['message']}");
+            wp_die('Request to the Assistant server was unsuccessful');
+        }
+        $res = json_decode($res['body'], true);
+        update_option('assistant_db_exists', $res["database_present"], false);
         wp_insert_post(
             array(
                 'post_title' => 'WordPress Site Assistant',
@@ -49,7 +76,8 @@ class WordPress_Site_Assistant {
             delete_user_meta($user_id, 'assistant_chat');
         }
         $page = new WP_Query( [ 'pagename' => 'wordpress-site-assistant' ] );
-        wp_delete_post( $page->post->ID );
+        wp_delete_post( $page->post->ID, true );
+        delete_option('assistant_db_exists');
     }
 
 
@@ -69,6 +97,7 @@ class WordPress_Site_Assistant {
 
     public function send_conversation_to_llm() {
         check_ajax_referer('assistant_chat');
+        self::check_key_exists();
         $user_id = get_current_user_id();
         $llm_chat = get_user_meta($user_id, 'llm_chat', true);
         $assistant_chat = get_user_meta($user_id, 'assistant_chat', true);
@@ -81,14 +110,20 @@ class WordPress_Site_Assistant {
                 'Content-Type' => 'application/json',
             ],
             'body' => wp_json_encode([
-                // 'site_url' => 'www.example.com',
+                'site_url' => home_url(),
                 'messages' => $llm_chat,
             ]),
         ]);
+        if ( is_wp_error($res) ) {
+            wp_die("Unable to connect to the Assistant server");
+        }
         $res_code = $res['response']['code'];
+        if ($res_code === 401) {
+            wp_die("Wrong WORDPRESS_SITE_ASSISTANT_API_KEY!");
+        }
         if ($res_code !== 200) {
             error_log($res['body']);
-            wp_send_json_error('Cound not communicate with the assistant', 500);
+            wp_die('Request to the Assistant server was unsuccessful');
             return;
         }
         $llm_chat = json_decode($res['body'], true);
@@ -109,11 +144,11 @@ class WordPress_Site_Assistant {
 
 
     public function load_assets() {
-        if ( ! is_page( 'wordpress-site-assistant' ) ) {
+        if ( ! is_page('wordpress-site-assistant') ) {
             return;
         }
         add_action( 'wp_body_open', [ $this, 'page_body'] );
-        if ( ! is_user_logged_in() ) {
+        if ( ! is_user_logged_in() || ! get_option('assistant_db_exists') ) {
             return;
         }
         wp_enqueue_style(
@@ -140,10 +175,13 @@ class WordPress_Site_Assistant {
 
     public function page_body() {
         if ( ! is_user_logged_in() ) {
-            ?> <h1> Must be logged in to use the assistant </h1> <?php
+            echo '<h2> Must be logged in to use the assistant </h2>';
             return;
         }
-
+        if ( ! get_option('assistant_db_exists') ) {
+            echo '<h2> Assistant database has not yet been created for this site </h2>';
+            return;
+        }
         $user_id = get_current_user_id();
         if ( ! metadata_exists( 'user', $user_id, 'assistant_chat') ) {
             add_user_meta( $user_id, 'assistant_chat', [
@@ -154,7 +192,9 @@ class WordPress_Site_Assistant {
             $system_msg = [
                 'role' => 'system',
                 'content' => 'You are an AI assistant who helps users to '
-                            .'get information from the current WordPress site.'
+                            .'get information from the current website.'
+                            .'Keep your responses concise unless asked for '
+                            .'longer explanations.'
             ];
             $assistant_chat = get_user_meta($user_id, 'assistant_chat', true);
             add_user_meta( $user_id, 'llm_chat', array_merge([ $system_msg ], $assistant_chat ), true);
@@ -164,7 +204,7 @@ class WordPress_Site_Assistant {
         ?>
             <div class="chat-container">
                 <button class="delete-conversation-btn">Delete Conversation</button>
-                <h1 class="chat-title">Wordpress Site Assistant</h1>
+                <h1 class="chat-title">WordPress Site Assistant</h1>
                 <div class="chat-box">
                     <?php foreach ($assistant_chat as $msg): ?>
                         <div class="chat-message">

@@ -49,7 +49,7 @@ def db_ops():
         return {"message": "'site_url' is not present in the request body."}, 400
     site_domain = urlparse(request.json["site_url"]).hostname
     if not site_domain:
-        return {"message": "'site_url' is not an url."}, 400
+        return {"message": "'site_url' is not a url."}, 400
 
     match request.method:
         case "POST":

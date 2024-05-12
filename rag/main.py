@@ -70,8 +70,8 @@ class WordPressRAG:
             rag_msg = "You can use the following data to answer the user query:"
             for text in retrieved_texts:
                 rag_msg += "\n\n-----\n\n" + text
-            rag_msg = ChatMessage(role="system", content=rag_msg)
-            chat_llm = chat[:-1] + [rag_msg, chat[-1]]
+            msg = rag_msg + "\n\n----------\n\n" + chat[-1].content
+            chat_llm = chat[:-1] + [ChatMessage(role=chat[-1].role, content=msg)]
         else:
             chat_llm = chat
 
