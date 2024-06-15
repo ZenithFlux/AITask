@@ -1,8 +1,4 @@
-# AITask
-
-Wasserstoff AI Fullstack Developer task.
-
-## Description
+# WordPress AI Assistant Plugin
 
 This is a WordPress plugin which adds an AI chatbot to your website. The AI chatbot uses Retrieval Augmented Generation (RAG) to fetch the contents of your website and respond based on it, which means users can ask the assistant anything about the contents of your website and the chatbot will be able to answer them.
 
@@ -14,8 +10,8 @@ This is a WordPress plugin which adds an AI chatbot to your website. The AI chat
 
 1. Clone the repository and move into it.
     ```sh
-    git clone https://github.com/ZenithFlux/AITask.git
-    cd AITask
+    git clone https://github.com/ZenithFlux/wordpress-ai-assistant.git
+    cd wordpress-ai-assistant
     ```
 
 2. Install the required dependencies.
